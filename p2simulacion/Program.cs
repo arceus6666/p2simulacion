@@ -92,6 +92,20 @@ namespace p2simulacion {
 
 		static int[] numeros = generate();
 
+		static string[] blanks = {
+				"",
+				" ",
+				"  ",
+				"   ",
+				"    ",
+				"     ",
+				"      ",
+				"       ",
+				"        ",
+				"         "
+			};
+
+
 		private static int RandomNumber() {
 			int rnd = RND.Next(numeros.Length);
 			//Console.Write("rnd: " + rnd + "; ");
@@ -138,18 +152,6 @@ namespace p2simulacion {
 		private static void uniforme(double[] r, double a, double b) {
 			int l = r.Length;
 			//int sl = 10;
-			string[] blanks = {
-				"",
-				" ",
-				"  ",
-				"   ",
-				"    ",
-				"     ",
-				"      ",
-				"       ",
-				"        ",
-				"         "
-			};
 			string res = "+----------+----------+----------+\n";
 			res += "| Medición |    ri    |    xi    |\n";
 			res += "+----------+----------+----------+\n";
@@ -167,18 +169,6 @@ namespace p2simulacion {
 		private static void exponencial(double[] r, double lambda) {
 			int l = r.Length;
 			//int sl = 10;
-			string[] blanks = {
-				"",
-				" ",
-				"  ",
-				"   ",
-				"    ",
-				"     ",
-				"      ",
-				"       ",
-				"        ",
-				"         "
-			};
 			string res = "+----------+----------+----------+\n";
 			res += "| Medición |    ri    |    xi    |\n";
 			res += "+----------+----------+----------+\n";
@@ -199,18 +189,6 @@ namespace p2simulacion {
 		private static void bernoulli(double[] r, double p) {
 			int l = r.Length;
 			//int sl = 10;
-			string[] blanks = {
-				"",
-				" ",
-				"  ",
-				"   ",
-				"    ",
-				"     ",
-				"      ",
-				"       ",
-				"        ",
-				"         "
-			};
 			string res = "+----------+----------+----------+----------+\n";
 			res += "| Medición |    ri    |    xi    |  evento  |\n";
 			res += "+----------+----------+----------+----------+\n";
@@ -231,18 +209,6 @@ namespace p2simulacion {
 
 		private static void poisson(double[] r, double lambda) {
 			int l = r.Length;
-			string[] blanks = {
-				"",
-				" ",
-				"  ",
-				"   ",
-				"    ",
-				"     ",
-				"      ",
-				"       ",
-				"        ",
-				"         "
-			};
 			int Factorial(int n) {
 				if(n < 0)
 					return 0;
@@ -313,6 +279,66 @@ namespace p2simulacion {
 			res += "+------+--------+----+\n";
 			Console.WriteLine(res);
 		}
+
+		private static void demanda(int[] demanda, double[] r) {
+			int l = r.Length;
+			HashSet<int> unique = new HashSet<int>();
+			foreach(int d in demanda) {
+				unique.Add(d);
+			}
+			//foreach(int e in unique) {
+			//	Console.WriteLine(e);
+			//}
+			//Console.WriteLine(unique.Count);
+
+			double[] px = new double[unique.Count];
+			foreach(int d in demanda) {
+				px[d] += 1.0;
+			}
+			//Console.WriteLine(printArray(px));
+			//Console.WriteLine("l: {0}", l);
+			for(int i = 0; i < px.Length; i++) {
+				px[i] /= demanda.Length;
+			}
+
+			//Console.WriteLine(printArray(px));
+			double[] acc = new double[px.Length + 1];
+			acc[0] = 0;
+			for(int i = 0; i < px.Length; i++) {
+				acc[i + 1] = acc[i] + px[i];
+			}
+
+			//Console.WriteLine(printArray(acc));
+
+			int[] rd = new int[l];
+
+			for(int i = 0; i < l; i++) {
+				double rn = r[i];
+				for(int j = 1; j < acc.Length; j++) {
+					double li = acc[j - 1], ls = acc[j];
+					if(li < rn && rn < ls) {
+						rd[i] = j - 1;
+						break;
+					}
+				}
+			}
+
+			//Console.WriteLine(printArray(rd));
+
+			string res = "+-----+--------+-------+\n";
+			res += "| Día |   ri   |  Dem  |\n";
+			res += "+-----+--------+-------+\n";
+			for(int i = 0; i < l; i++) {
+				int s = ((i + 1) + "").Length;
+				int sr = (r[i] + "").Length;
+				int sd = (rd[i] + "").Length;
+				Console.WriteLine("{0}, {1}", sr, sd);
+				res += $"| {i + 1}{blanks[3 - s]} | {r[i]}{blanks[6 - (sr)]} |  {rd[i]}{blanks[4 - (sd)]} |\n";
+			}
+			res += "+-----+--------+-------+\n";
+			Console.WriteLine(res);
+		}
+
 		static bool salir = false;
 
 		static double[] numerosr = null;
@@ -326,6 +352,7 @@ namespace p2simulacion {
 			Console.WriteLine("\td)\tPrueba de Distribución Exponencial.");
 			Console.WriteLine("\te)\tPrueba de Distribución de Bernoulli.");
 			Console.WriteLine("\tf)\tPrueba de Distribución de Poisson.");
+			Console.WriteLine("\tg)\tPrueba de Estimación de Demanda.");
 			Console.WriteLine("\totro)\tSalir.");
 			Console.Write("Opción: ");
 			switch(Console.ReadLine()) {
@@ -419,13 +446,19 @@ namespace p2simulacion {
 					}
 					break;
 				case "g":
-					Console.WriteLine("Introduzca su finción:");
-					Console.WriteLine("potencia como: a^b -> pow(a, b)");
-					Console.WriteLine("raíz como: √a -> sqrt(a)");
-					Console.Write("f(x)=");
-					string f = Console.ReadLine();
-					Func<double, double> fx = (Func<double, double>) Eval("(x) => " + f + ";");
-
+					if(numerosr == null) {
+						Console.WriteLine("Ninguna serie fue generada.");
+					} else {
+						Console.WriteLine("Introduzca su observación de demanda (con valores separados por \",\"): ");
+						string v = Console.ReadLine();
+						v = v.Replace(" ", "");
+						string[] va = v.Split(',');
+						int[] d = new int[va.Length];
+						for(int i = 0; i < va.Length; i++) {
+							d[i] = int.Parse(va[i]);
+						}
+						demanda(d, numerosr);
+					}
 					break;
 				case "arc":
 					string ai = Console.ReadLine();
@@ -435,12 +468,6 @@ namespace p2simulacion {
 						double num = double.Parse(nn[i]);
 						numerosr[i] = num;
 					}
-					break;
-				case "eval":
-					f = Console.ReadLine();
-					char[] separators = new char[] { '+', '-', '*', '/' };
-					Func<double, double> e = (Func<double, double>) Eval("(x) => " + f + ";");
-					Console.WriteLine(e(3));
 					break;
 				default:
 					salir = true;
